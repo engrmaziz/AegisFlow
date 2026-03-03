@@ -1,177 +1,122 @@
 import numpy as np
+from sklearn.linear_model import LogisticRegression
 
-def initialize_parameters(layer_dims: list) -> dict:
-    """Initializes weights with He initialization and biases to zero."""
+# Pure NumPy implementation of a 2-layer Neural Network
+
+def initialize_parameters(input_dim, hidden_dim, output_dim):
+    """He initialization for weights, zeros for biases."""
     np.random.seed(42)
-    parameters = {}
-    L = len(layer_dims)
-    
-    for l in range(1, L):
-        parameters[f'W{l}'] = np.random.randn(layer_dims[l], layer_dims[l-1]) * np.sqrt(2 / layer_dims[l-1])
-        parameters[f'b{l}'] = np.zeros((layer_dims[l], 1))
-        
-    return parameters
+    W1 = np.random.randn(hidden_dim, input_dim) * np.sqrt(2. / input_dim)
+    b1 = np.zeros((hidden_dim, 1))
+    W2 = np.random.randn(output_dim, hidden_dim) * np.sqrt(2. / hidden_dim)
+    b2 = np.zeros((output_dim, 1))
+    return {'W1': W1, 'b1': b1, 'W2': W2, 'b2': b2}
 
-def relu(Z: np.ndarray) -> np.ndarray:
-    """ReLU activation."""
+def relu(Z):
     return np.maximum(0, Z)
 
-def relu_backward(dA: np.ndarray, Z: np.ndarray) -> np.ndarray:
-    """Backward pass for ReLU."""
+def relu_backward(dA, Z):
     dZ = np.array(dA, copy=True)
     dZ[Z <= 0] = 0
     return dZ
 
-def sigmoid(Z: np.ndarray) -> np.ndarray:
-    """Sigmoid activation."""
-    return 1 / (1 + np.exp(-Z))
+def sigmoid(Z):
+    # Clip to avoid overflow
+    Z_clipped = np.clip(Z, -500, 500)
+    return 1.0 / (1.0 + np.exp(-Z_clipped))
 
-def sigmoid_backward(dA: np.ndarray, Z: np.ndarray) -> np.ndarray:
-    """Backward pass for Sigmoid."""
+def sigmoid_backward(dA, Z):
     s = sigmoid(Z)
-    dZ = dA * s * (1 - s)
-    return dZ
+    return dA * s * (1 - s)
 
-def forward_propagation(X: np.ndarray, parameters: dict) -> tuple:
-    """Performs forward pass for a 2-layer NN: Linear -> ReLU -> Linear -> Sigmoid."""
-    caches = {}
-    
-    W1 = parameters['W1']
-    b1 = parameters['b1']
-    W2 = parameters['W2']
-    b2 = parameters['b2']
-    
-    # Layer 1: Z1 = W1·X + b1
+def forward_propagation(X, params):
+    """Z1 = W1@X + b1, A1 = relu, Z2 = W2@A1 + b2, A2 = sigmoid"""
+    W1, b1, W2, b2 = params['W1'], params['b1'], params['W2'], params['b2']
     Z1 = np.dot(W1, X) + b1
-    # Layer 1: A1 = relu(Z1)
     A1 = relu(Z1)
-    
-    # Layer 2: Z2 = W2·A1 + b2
     Z2 = np.dot(W2, A1) + b2
-    # Layer 2: A2 = sigmoid(Z2)
     A2 = sigmoid(Z2)
-    
-    caches = (Z1, A1, Z2, A2)
-    
-    return A2, caches
+    cache = {'Z1': Z1, 'A1': A1, 'Z2': Z2, 'A2': A2}
+    return A2, cache
 
-def compute_loss(AL: np.ndarray, Y: np.ndarray) -> float:
-    """Computes Binary Cross Entropy Loss."""
+def compute_loss(A2, Y):
+    """Binary cross-entropy loss."""
     m = Y.shape[1]
-    
-    # L = -1/m * Σ(Y*log(AL) + (1-Y)*log(1-AL))
-    # Add epsilon to prevent log(0)
-    epsilon = 1e-15
-    AL = np.clip(AL, epsilon, 1 - epsilon)
-    cost = -1/m * np.sum(Y * np.log(AL) + (1 - Y) * np.log(1 - AL))
-    
-    cost = np.squeeze(cost)
-    return float(cost)
+    A2 = np.clip(A2, 1e-15, 1 - 1e-15)
+    loss = -(1.0/m) * np.sum(Y * np.log(A2) + (1-Y) * np.log(1-A2))
+    return np.squeeze(loss)
 
-def backward_propagation(AL: np.ndarray, Y: np.ndarray, caches: tuple, parameters: dict) -> dict:
-    """Performs backward propagation."""
-    m = Y.shape[1]
-    Z1, A1, Z2, A2 = caches
+def backward_propagation(X, Y, cache, params):
+    """ALL gradients with math formula comments on every line."""
+    m = X.shape[1]
+    W2 = params['W2']
+    A1, A2 = cache['A1'], cache['A2']
+    Z1, Z2 = cache['Z1'], cache['Z2']
+
+    # dL/dZ2 = A2 - Y
+    dZ2 = A2 - Y
     
-    W2 = parameters['W2']
+    # dL/dW2 = (1/m) * dZ2 @ A1.T
+    dW2 = (1.0 / m) * np.dot(dZ2, A1.T)
     
-    # ---- Layer 2 (Output) ----
+    # dL/db2 = (1/m) * sum(dZ2)
+    db2 = (1.0 / m) * np.sum(dZ2, axis=1, keepdims=True)
     
-    # Gradient of Loss w.r.t A2: dL/dA2
-    # dL/dA2 = -(Y/AL) + ((1-Y)/(1-AL))
-    dA2 = -(np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
-    
-    # Gradient of Loss w.r.t Z2: dL/dZ2
-    # dL/dZ2 = dL/dA2 * dA2/dZ2 = dA2 * (A2 * (1 - A2)) = A2 - Y
-    dZ2 = sigmoid_backward(dA2, Z2)
-    # alternatively: dZ2 = AL - Y is a famous shortcut for sigmoid BCE
-    
-    # Gradient of Loss w.r.t W2: dL/dW2
-    # dL/dW2 = 1/m * dL/dZ2 · A1.T
-    dW2 = 1./m * np.dot(dZ2, A1.T)
-    
-    # Gradient of Loss w.r.t b2: dL/db2
-    # dL/db2 = 1/m * Σ(dL/dZ2)
-    db2 = 1./m * np.sum(dZ2, axis=1, keepdims=True)
-    
-    # ---- Layer 1 (Hidden) ----
-    
-    # Gradient of Loss w.r.t A1: dL/dA1
-    # dL/dA1 = W2.T · dL/dZ2
+    # dL/dA1 = W2.T @ dZ2
     dA1 = np.dot(W2.T, dZ2)
     
-    # Gradient of Loss w.r.t Z1: dL/dZ1
-    # dL/dZ1 = dL/dA1 * dA1/dZ1 = dA1 * relu_deriv(Z1)
+    # dL/dZ1 = dL/dA1 * relu'(Z1)
     dZ1 = relu_backward(dA1, Z1)
     
-    # Gradient of Loss w.r.t W1: dL/dW1
-    # dL/dW1 = 1/m * dL/dZ1 · X.T
-    dW1 = 1./m * np.dot(dZ1, X.T)
+    # dL/dW1 = (1/m) * dZ1 @ X.T
+    dW1 = (1.0 / m) * np.dot(dZ1, X.T)
     
-    # Gradient of Loss w.r.t b1: dL/db1
-    # dL/db1 = 1/m * Σ(dL/dZ1)
-    db1 = 1./m * np.sum(dZ1, axis=1, keepdims=True)
-    
-    grads = {"dW1": dW1, "db1": db1, "dW2": dW2, "db2": db2}
-    
-    return grads
+    # dL/db1 = (1/m) * sum(dZ1)
+    db1 = (1.0 / m) * np.sum(dZ1, axis=1, keepdims=True)
 
-def update_parameters(parameters: dict, grads: dict, learning_rate: float) -> dict:
-    """Updates network weights and biases using Gradient Descent."""
-    parameters['W1'] = parameters['W1'] - learning_rate * grads['dW1']
-    parameters['b1'] = parameters['b1'] - learning_rate * grads['db1']
-    parameters['W2'] = parameters['W2'] - learning_rate * grads['dW2']
-    parameters['b2'] = parameters['b2'] - learning_rate * grads['db2']
-    
-    return parameters
+    return {'dW1': dW1, 'db1': db1, 'dW2': dW2, 'db2': db2}
 
-def train(X: np.ndarray, Y: np.ndarray, layer_dims: list, learning_rate: float=0.01, num_iterations: int=1000) -> dict:
-    """Main training loop."""
-    parameters = initialize_parameters(layer_dims)
+def update_parameters(params, grads, learning_rate=0.01):
+    params['W1'] -= learning_rate * grads['dW1']
+    params['b1'] -= learning_rate * grads['db1']
+    params['W2'] -= learning_rate * grads['dW2']
+    params['b2'] -= learning_rate * grads['db2']
+    return params
+
+def train(X, Y, hidden_dim=4, epochs=1000, lr=0.1):
+    input_dim = X.shape[0]
+    output_dim = Y.shape[0]
+    params = initialize_parameters(input_dim, hidden_dim, output_dim)
     
-    for i in range(num_iterations):
-        AL, caches = forward_propagation(X, parameters)
-        cost = compute_loss(AL, Y)
-        grads = backward_propagation(AL, Y, caches, parameters)
-        parameters = update_parameters(parameters, grads, learning_rate)
+    for i in range(epochs):
+        A2, cache = forward_propagation(X, params)
+        cost = compute_loss(A2, Y)
+        grads = backward_propagation(X, Y, cache, params)
+        params = update_parameters(params, grads, lr)
         
         if i % 100 == 0:
-            print(f"Cost after iteration {i}: {cost:.4f}")
-            
-    return parameters
+            print(f"Cost after epoch {i}: {cost:.4f}")
+    return params
 
-def predict(X: np.ndarray, parameters: dict) -> np.ndarray:
-    """Predicts a binary outcome given features X."""
-    AL, _ = forward_propagation(X, parameters)
-    predictions = (AL > 0.5).astype(int)
-    return predictions
+def predict(X, params):
+    A2, _ = forward_propagation(X, params)
+    return (A2 > 0.5).astype(int)
 
 if __name__ == "__main__":
-    from sklearn.linear_model import LogisticRegression
+    print("Training pure NumPy Neural Network...")
+    # Synthetic binary classification data (2 features)
+    np.random.seed(1)
+    X = np.random.randn(2, 400)
+    Y = (X[0,:]**2 + X[1,:]**2 < 1.0).astype(int).reshape(1, 400) # Circular decision boundary
     
-    print("Testing Custom NumPy Neural Net...")
-    # Mock data [features_dim x num_samples]
-    # Lets make a simple binary classification problem
-    np.random.seed(42)
-    # Features: invoice_amount, invoice_age, days_until_due
-    X_train = np.random.randn(3, 200)
+    trained_params = train(X, Y, hidden_dim=8, epochs=1000, lr=0.5)
+    predictions = predict(X, trained_params)
+    acc = np.mean(predictions == Y)
+    print(f"NumPy NN Accuracy: {acc*100:.2f}%")
     
-    # Generate labels dependent on some linear combination + non-linearity
-    Y_train = (np.sin(X_train[0, :] * 2) + X_train[1, :] * 1.5 - X_train[2, :] * 0.5 > 0).astype(int).reshape(1, 200)
-    
-    layer_dims = [X_train.shape[0], 5, 1] # 3 -> 5 -> 1
-    
-    trained_params = train(X_train, Y_train, layer_dims, learning_rate=0.05, num_iterations=2000)
-    
-    preds_custom = predict(X_train, trained_params)
-    accuracy_custom = np.mean(preds_custom == Y_train) * 100
-    
-    print(f"\nCustom NN Training Accuracy: {accuracy_custom:.2f}%")
-    
-    # Compare with Sklearn Logistic Regression
-    clf = LogisticRegression()
-    clf.fit(X_train.T, np.squeeze(Y_train))
-    preds_lr = clf.predict(X_train.T)
-    accuracy_lr = np.mean(preds_lr == np.squeeze(Y_train)) * 100
-    
-    print(f"Sklearn Logistic Regression Training Accuracy: {accuracy_lr:.2f}%")
+    # Compare with sklearn Logistic Regression
+    lr = LogisticRegression()
+    lr.fit(X.T, Y.T.ravel())
+    lr_preds = lr.predict(X.T)
+    lr_acc = np.mean(lr_preds == Y.ravel())
+    print(f"Sklearn LogisticRegression Accuracy: {lr_acc*100:.2f}%")

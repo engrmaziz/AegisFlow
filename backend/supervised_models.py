@@ -1,175 +1,97 @@
 import pandas as pd
 import numpy as np
-import joblib
-import os
-from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import Ridge
-from sklearn.metrics import classification_report, roc_auc_score, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import classification_report, roc_auc_score
+import joblib
 
 class InvoiceDefaultClassifier:
-    """Supervised models to predict probability of invoice default."""
-    
-    def __init__(self, data_path: str):
-        self.data_path = data_path
-        self.svm_model = None
-        self.dt_model = None
-        self.X_train = self.X_test = self.y_train = self.y_test = None
-        
-    def load_and_split(self) -> None:
-        """Loads data and splits into train/test."""
-        try:
-            df = pd.read_csv(self.data_path)
-        except Exception:
-            print("Warning: Failed to load. Using mock data for InvoiceDefaultClassifier.")
-            df = pd.DataFrame({
-                'invoice_amount': np.random.normal(5000, 2000, 200),
-                'invoice_age_days': np.random.uniform(10, 60, 200),
-                'days_until_due': np.random.uniform(-30, 30, 200),
-                'late_payment_count': np.random.poisson(1, 200),
-                'avg_client_delay': np.random.exponential(10, 200),
-                'payment_delay_days': np.random.exponential(20, 200)
-            })
-            
-        df['will_default'] = (df['payment_delay_days'] > 30).astype(int)
-        
-        features = ['invoice_amount', 'invoice_age_days', 'days_until_due', 'late_payment_count', 'avg_client_delay']
-        
-        # Fill NA, though preprocessing should have done this
-        X = df[features].fillna(0)
-        y = df['will_default']
-        
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
-    def train_svm(self) -> None:
-        """Trains an SVM with RBF kernel."""
-        self.svm_model = SVC(kernel='rbf', probability=True, random_state=42)
-        self.svm_model.fit(self.X_train, self.y_train)
-        print("SVM training completed.")
-        
-    def train_decision_tree(self) -> None:
-        """Trains a Decision Tree."""
+    """Supervised Model to predict the probability an invoice will default (>30 days)."""
+    def __init__(self):
+        self.svm_pipeline = make_pipeline(StandardScaler(), SVC(kernel='rbf', probability=True, random_state=42))
         self.dt_model = DecisionTreeClassifier(max_depth=5, random_state=42)
-        self.dt_model.fit(self.X_train, self.y_train)
-        print("Decision Tree training completed.")
+        self.X_train = self.X_test = self.y_train = self.y_test = None
+
+    def load_and_split(self, df: pd.DataFrame):
+        """Prepares binary classification target: will_default if payment_delay_days > 30."""
+        df['will_default'] = (df['payment_delay_days'] > 30).astype(int)
+        features = ['amount', 'invoice_age_days', 'client_avg_delay']
         
-    def evaluate(self) -> None:
-        """Evaluates both models."""
-        for name, model in [("SVM", self.svm_model), ("Decision Tree", self.dt_model)]:
-            if model is None:
-                continue
-            preds = model.predict(self.X_test)
-            probs = model.predict_proba(self.X_test)[:, 1]
-            print(f"\n--- {name} Evaluation ---")
-            print(classification_report(self.y_test, preds, zero_division=0))
-            try:
-                print(f"ROC-AUC: {roc_auc_score(self.y_test, probs):.4f}")
-            except Exception as e:
-                print(f"ROC-AUC formatting error: {e}")
+        X = df[features]
+        y = df['will_default']
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    def predict_default_probability(self, invoice_features: dict) -> float:
-        """Uses SVM to predict default probability."""
-        if self.svm_model is None:
-            raise ValueError("SVM model not trained.")
-        X = pd.DataFrame([invoice_features])
-        return self.svm_model.predict_proba(X)[0][1]
+    def train_svm(self):
+        """Trains SVM with StandardScaler."""
+        self.svm_pipeline.fit(self.X_train, self.y_train)
 
-    def save_models(self, model_dir: str) -> None:
-        """Saves models using joblib."""
-        os.makedirs(model_dir, exist_ok=True)
-        joblib.dump(self.svm_model, os.path.join(model_dir, 'svm.joblib'))
-        joblib.dump(self.dt_model, os.path.join(model_dir, 'decision_tree.joblib'))
-        print(f"Classifier models saved to {model_dir}")
+    def train_decision_tree(self):
+        """Trains basic Decision Tree."""
+        self.dt_model.fit(self.X_train, self.y_train)
 
+    def evaluate(self):
+        """Evaluates SVM classification reports & ROC-AUC."""
+        svm_preds = self.svm_pipeline.predict(self.X_test)
+        svm_probs = self.svm_pipeline.predict_proba(self.X_test)[:, 1]
+        
+        print("--- SVM Evaluation ---")
+        print(classification_report(self.y_test, svm_preds))
+        if len(np.unique(self.y_test)) > 1:
+            print(f"ROC-AUC: {roc_auc_score(self.y_test, svm_probs):.4f}")
+
+    def predict_default_probability(self, amount, age, avg_delay):
+        """Returns isolated probability metric for an invoice."""
+        return self.svm_pipeline.predict_proba([[amount, age, avg_delay]])[0][1]
+
+    def save_models(self):
+        """Exports .pkl model objects."""
+        joblib.dump(self.svm_pipeline, 'svm_model.pkl')
+        joblib.dump(self.dt_model, 'dt_model.pkl')
 
 class PaymentDelayRegressor:
-    """Predicts the continuous number of days an invoice will be late."""
-    
-    def __init__(self, data_path: str):
-        self.data_path = data_path
-        self.ridge_model = None
+    """Regression Model predicting the EXACT continuous amount of latency in days."""
+    def __init__(self):
+        self.model = Ridge(alpha=1.0)
         self.X_train = self.X_test = self.y_train = self.y_test = None
-        
-    def load_and_split(self) -> None:
-        """Loads data and splits into train/test."""
-        try:
-            df = pd.read_csv(self.data_path)
-        except Exception:
-            print("Warning: Failed to load. Using mock data for PaymentDelayRegressor.")
-            df = pd.DataFrame({
-                'invoice_amount': np.random.normal(5000, 2000, 200),
-                'invoice_age_days': np.random.uniform(10, 60, 200),
-                'days_until_due': np.random.uniform(-30, 30, 200),
-                'late_payment_count': np.random.poisson(1, 200),
-                'avg_client_delay': np.random.exponential(10, 200),
-                'payment_delay_days': np.random.exponential(20, 200)
-            })
-            
-        features = ['invoice_amount', 'invoice_age_days', 'days_until_due', 'late_payment_count', 'avg_client_delay']
-        X = df[features].fillna(0)
+
+    def load_and_split(self, df: pd.DataFrame):
+        features = ['amount', 'invoice_age_days', 'client_avg_delay']
+        X = df[features]
         y = df['payment_delay_days']
-        
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    def train_ridge(self) -> None:
-        """Trains Ridge regression model."""
-        self.ridge_model = Ridge(alpha=1.0, random_state=42)
-        self.ridge_model.fit(self.X_train, self.y_train)
-        print("Ridge training completed.")
+    def train(self):
+        self.model.fit(self.X_train, self.y_train)
 
-    def evaluate(self) -> None:
-        """Evaluates model using RMSE and R2."""
-        if self.ridge_model is None:
-            return
-        preds = self.ridge_model.predict(self.X_test)
-        rmse = np.sqrt(mean_squared_error(self.y_test, preds))
-        r2 = r2_score(self.y_test, preds)
-        print("\n--- Ridge Regressor Evaluation ---")
-        print(f"RMSE: {rmse:.2f} days")
-        print(f"R² Score: {r2:.4f}")
-
-    def predict_days_late(self, invoice_features: dict) -> int:
-        """Predicts days late (minimum 0)."""
-        if self.ridge_model is None:
-            raise ValueError("Ridge model not trained.")
-        X = pd.DataFrame([invoice_features])
-        pred = self.ridge_model.predict(X)[0]
-        return max(0, int(round(pred)))
-
-    def save_model(self, model_dir: str) -> None:
-        """Saves regression model."""
-        os.makedirs(model_dir, exist_ok=True)
-        joblib.dump(self.ridge_model, os.path.join(model_dir, 'ridge.joblib'))
-        print(f"Regressor model saved to {model_dir}")
-
+    def predict_days_late(self, amount, age, avg_delay) -> int:
+        """Outputs an integer representing predicted delay bounds (>= 0)."""
+        pred = self.model.predict([[amount, age, avg_delay]])[0]
+        return max(0, int(pred))
 
 if __name__ == "__main__":
-    print("Testing Supervised Models standalone...")
+    print("Running Supervised Models Training...")
+    # Synthesize data
+    np.random.seed(42)
+    n_samples = 200
+    df = pd.DataFrame({
+        'amount': np.random.uniform(100, 10000, n_samples),
+        'invoice_age_days': np.random.randint(0, 90, n_samples),
+        'client_avg_delay': np.random.normal(15, 20, n_samples),
+    })
+    # target depends on features
+    df['payment_delay_days'] = df['client_avg_delay'] + (df['amount']/1000) + np.random.normal(0, 5, n_samples)
     
-    clf = InvoiceDefaultClassifier("test_data.csv")
-    clf.load_and_split()
+    clf = InvoiceDefaultClassifier()
+    clf.load_and_split(df)
     clf.train_svm()
     clf.train_decision_tree()
     clf.evaluate()
-    clf.save_models("models")
     
-    print("-" * 30)
-    
-    reg = PaymentDelayRegressor("test_data.csv")
-    reg.load_and_split()
-    reg.train_ridge()
-    reg.evaluate()
-    reg.save_model("models")
-    
-    sample_invoice = {
-        'invoice_amount': 7500.0,
-        'invoice_age_days': 45.0,
-        'days_until_due': -15.0,  # 15 days past due
-        'late_payment_count': 3,
-        'avg_client_delay': 14.5
-    }
-    
-    prob = clf.predict_default_probability(sample_invoice)
-    days = reg.predict_days_late(sample_invoice)
-    print(f"\nSample Prediction - Default Prob: {prob:.2f}, Days Late: {days}")
+    reg = PaymentDelayRegressor()
+    reg.load_and_split(df)
+    reg.train()
+    print(f"Sample regression prediction: {reg.predict_days_late(5000, 45, 10)} days")

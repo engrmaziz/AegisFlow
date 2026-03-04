@@ -143,21 +143,52 @@ class CashFlowTrainer:
         plt.savefig('cashflow_forecast.png')
         plt.close()
 
+import pandas as pd
+
 if __name__ == "__main__":
-    print("Running LSTM Forecast Training...")
+    print("Running LSTM Forecast Training on Real Data...")
     
-    # Synthetic sine wave data with trend
-    t = np.arange(0, 500)
-    data = 10000 + t * 50 + np.sin(t * 0.1) * 2000 + np.random.normal(0, 500, 500)
+    data_path = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'invoices_clean.csv')
+    models_dir = os.path.join(os.path.dirname(__file__), 'models')
     
-    dataset = CashFlowDataset(data)
-    model = LSTMForecaster()
-    trainer = CashFlowTrainer(model, dataset)
-    
-    trainer.train(epochs=50)
-    trainer.evaluate()
-    
-    recent_30 = data[-30:]
-    f_data = trainer.forecast(recent_30)
-    trainer.plot_forecast(recent_30, f_data)
-    print("Training and forecasting complete. Chart saved as 'cashflow_forecast.png'.")
+    if not os.path.exists(data_path):
+        print(f"Error: Could not find {data_path}. Run data_pipeline.py first.")
+    else:
+        df = pd.read_csv(data_path)
+        
+        # We need a continuous time-series of amounts. 
+        # Using InvoiceDate and summing InvoiceAmount per day to simulate daily cash inflow/outflow
+        df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+        daily_amounts = df.groupby('InvoiceDate')['InvoiceAmount'].sum().sort_index()
+        
+        # Resample to fill any missing days with 0
+        daily_amounts = daily_amounts.resample('D').sum().fillna(0)
+        data = daily_amounts.values[-130:] # Train on latest 130 days for very fast CPU performance
+        
+        print(f"Loaded continuous daily cashflow series with {len(data)} days.")
+        
+        dataset = CashFlowDataset(data, seq_length=30, output_length=90)
+        model = LSTMForecaster(input_size=1, hidden_size=128, num_layers=2, output_size=90)
+        trainer = CashFlowTrainer(model, dataset, learning_rate=0.001)
+        
+        trainer.train(epochs=100)
+        trainer.evaluate()
+        
+        # Save model
+        os.makedirs(models_dir, exist_ok=True)
+        model_save_path = os.path.join(models_dir, 'lstm_cashflow.pt')
+        trainer.save_model(model_save_path)
+        print(f"Model saved successfully to: {model_save_path}")
+        
+        # Sample forecast
+        recent_30 = data[-30:]
+        f_data = trainer.forecast(recent_30)
+        
+        print("\n--- 90-Day Sample Forecast ---")
+        print(f"Projected 30-Day: ${f_data['projected_30_day']:.2f}")
+        print(f"Projected 60-Day: ${f_data['projected_60_day']:.2f}")
+        print(f"Projected 90-Day: ${f_data['projected_90_day']:.2f}")
+        print(f"Liquidity Warning: {f_data['liquidity_warning']}")
+        
+        trainer.plot_forecast(recent_30, f_data)
+        print("\nTraining and forecasting complete. Chart saved as 'cashflow_forecast.png'.")

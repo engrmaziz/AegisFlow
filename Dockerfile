@@ -1,14 +1,11 @@
-# Base python image
 FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies needed for computer vision and OCR
-RUN apt-get update && apt-get install -y \
-    tesseract-ocr \
-    libgl1 \
-    libglib2.0-0 \
+# Install basic system dependencies if needed (can be expanded later if necessary)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend requirements explicitly

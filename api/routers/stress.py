@@ -103,6 +103,54 @@ async def map_stress_test(req: StressTestRequest):
             description="Continuous incremental increase in operational costs against fixed revenue schedules."
         ))
 
+        # Scenario 4: Supply Chain Disruption
+        s4_days = []
+        bal = req.current_balance
+        for d in range(90):
+            daily_burn = req.monthly_expenses / 30.0
+            # Sudden increase in expenses due to supply chain issues
+            if d > 30 and d < 60:
+                daily_burn *= 1.5
+            bal -= daily_burn
+            
+            if d % 10 == 0 and d > 0:
+                bal += random.uniform(req.monthly_expenses * 0.25, req.monthly_expenses * 0.4)
+                
+            s4_days.append(float(bal))
+            
+        score_4 = max(0.0, min(100.0, (s4_days[-1] / req.current_balance) * 100 if req.current_balance > 0 else 0))
+        scenarios.append(StressScenario(
+            scenario_id="Supply Chain Disruption",
+            days=s4_days,
+            severity="High",
+            survivability_score=score_4,
+            description="Temporary but severe spike in operational costs due to upstream logistics failures."
+        ))
+
+        # Scenario 5: Perfect Storm
+        s5_days = []
+        bal = req.current_balance
+        for d in range(90):
+            daily_burn = (req.monthly_expenses / 30.0) * 1.2
+            bal -= daily_burn
+            
+            if d == 45:
+                bal -= random.uniform(req.current_balance * 0.3, req.current_balance * 0.6)
+                
+            if random.random() < 0.02:
+                bal += random.uniform(500, 2000)
+                
+            s5_days.append(float(bal))
+            
+        score_5 = max(0.0, min(100.0, (s5_days[-1] / req.current_balance) * 100 if req.current_balance > 0 else 0))
+        scenarios.append(StressScenario(
+            scenario_id="Perfect Storm Nexus",
+            days=s5_days,
+            severity="Extreme",
+            survivability_score=score_5,
+            description="Simultaneous occurrence of client defaults, unexpected liabilities, and inflation."
+        ))
+
         return StressTestResponse(scenarios=scenarios)
 
     except Exception as e:

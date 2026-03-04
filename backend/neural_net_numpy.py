@@ -103,20 +103,48 @@ def predict(X, params):
     return (A2 > 0.5).astype(int)
 
 if __name__ == "__main__":
-    print("Training pure NumPy Neural Network...")
-    # Synthetic binary classification data (2 features)
-    np.random.seed(1)
-    X = np.random.randn(2, 400)
-    Y = (X[0,:]**2 + X[1,:]**2 < 1.0).astype(int).reshape(1, 400) # Circular decision boundary
+    import pandas as pd
+    from sklearn.preprocessing import StandardScaler
+    import os
     
-    trained_params = train(X, Y, hidden_dim=8, epochs=1000, lr=0.5)
-    predictions = predict(X, trained_params)
-    acc = np.mean(predictions == Y)
-    print(f"NumPy NN Accuracy: {acc*100:.2f}%")
+    print("Training pure NumPy Neural Network on Real Invoice Data...")
     
-    # Compare with sklearn Logistic Regression
-    lr = LogisticRegression()
-    lr.fit(X.T, Y.T.ravel())
-    lr_preds = lr.predict(X.T)
-    lr_acc = np.mean(lr_preds == Y.ravel())
-    print(f"Sklearn LogisticRegression Accuracy: {lr_acc*100:.2f}%")
+    data_path = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'invoices_clean.csv')
+    if not os.path.exists(data_path):
+        print(f"Error: {data_path} not found. Run data_pipeline.py first.")
+    else:
+        df = pd.read_csv(data_path)
+        
+        # Features and target
+        features = ['InvoiceAmount', 'invoice_age_days', 'days_until_due']
+        X_df = df[features].fillna(0)
+        
+        if 'is_late' in df.columns:
+            Y_df = df['is_late'].values
+        else:
+            Y_df = (df['payment_delay_days'] > 0).astype(int).values
+            
+        # Scale features
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_df)
+        
+        # The NN expects X shape = (features, samples)
+        X = X_scaled.T
+        Y = Y_df.reshape(1, -1)
+        
+        print(f"Dataset shape: X={X.shape}, Y={Y.shape}")
+        
+        # Train NN
+        trained_params = train(X, Y, hidden_dim=8, epochs=1000, lr=0.1)
+        
+        # Predict NN
+        predictions = predict(X, trained_params)
+        acc = np.mean(predictions == Y)
+        print(f"NumPy NN Accuracy: {acc*100:.2f}%")
+        
+        # Compare with sklearn Logistic Regression
+        lr = LogisticRegression(random_state=42)
+        lr.fit(X_scaled, Y_df)
+        lr_preds = lr.predict(X_scaled)
+        lr_acc = np.mean(lr_preds == Y_df)
+        print(f"Sklearn LogisticRegression Accuracy: {lr_acc*100:.2f}%")

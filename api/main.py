@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 # from lstm_forecast import LSTMForecaster
 # from gan_stress import GANTrainer
 
-from routers import invoice, cashflow, ocr, stress
+from api.routers import invoice, cashflow, ocr, stress
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

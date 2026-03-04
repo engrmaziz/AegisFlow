@@ -25,19 +25,19 @@ class ClientClusterer:
             raise ValueError("No data provided.")
 
     def preprocess(self):
-        """Aggregates by client_id and scales features."""
+        """Aggregates by customerID and scales features."""
         if 'payment_delay_days' not in self.df.columns:
             # Mock if missing
             self.df['payment_delay_days'] = np.random.normal(5, 10, len(self.df))
             
-        self.client_stats = self.df.groupby('client_id').agg({
+        self.client_stats = self.df.groupby('customerID').agg({
             'payment_delay_days': 'mean',
-            'amount': 'sum',
-            'id': 'count'
-        }).rename(columns={'id': 'invoice_count'}).reset_index()
+            'InvoiceAmount': 'sum',
+            'invoiceNumber': 'count'
+        }).rename(columns={'invoiceNumber': 'invoice_count'}).reset_index()
         
         # Fill NaNs
-        self.client_stats['payment_delay_days'].fillna(0, inplace=True)
+        self.client_stats['payment_delay_days'] = self.client_stats['payment_delay_days'].fillna(0)
         
         features = self.client_stats[['payment_delay_days', 'invoice_count']]
         self.X_scaled = self.scaler.fit_transform(features)
@@ -61,10 +61,12 @@ class ClientClusterer:
         
     def save_results(self, output_path: str):
         """Saves the clustered client data to CSV."""
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
         self.client_stats.to_csv(output_path, index=False)
         
     def save_model(self, model_path: str, scaler_path: str):
         """Saves KMeans and Scaler using joblib."""
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
         joblib.dump(self.model, model_path)
         joblib.dump(self.scaler, scaler_path)
         
@@ -92,26 +94,33 @@ class ClientClusterer:
         plt.savefig('clusters_plot.png')
         plt.close()
 
+import os
 if __name__ == "__main__":
     print("Running Clustering Pipeline...")
-    # Synthetic data
-    fake_data = {
-        'id': range(1, 101),
-        'client_id': np.random.randint(1, 20, 100),
-        'amount': np.random.uniform(500, 10000, 100),
-        'payment_delay_days': np.concatenate([
-            np.random.normal(0, 2, 40),   # Reliable
-            np.random.normal(10, 5, 40),  # Erratic
-            np.random.normal(45, 15, 20)  # High Risk
-        ])
-    }
-    df = pd.DataFrame(fake_data)
+    data_path = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'invoices_clean.csv')
     
-    clusterer = ClientClusterer()
-    clusterer.load_data(df)
-    clusterer.preprocess()
-    clusterer.train()
-    clusterer.label_clusters()
-    clusterer.plot_clusters()
-    print(clusterer.client_stats[['client_id', 'payment_delay_days', 'risk_tier']].head(10))
-    print("Clustering completed. Plot saved as 'clusters_plot.png'.")
+    if not os.path.exists(data_path):
+        print(f"Error: Could not find data at {data_path}. Run data_pipeline.py first.")
+    else:
+        clusterer = ClientClusterer(data_path=data_path)
+        clusterer.load_data()
+        clusterer.preprocess()
+        clusterer.train()
+        clusterer.label_clusters()
+        
+        # Save results
+        out_csv = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'clustered.csv')
+        model_path = os.path.join(os.path.dirname(__file__), 'models', 'kmeans_model.joblib')
+        scaler_path = os.path.join(os.path.dirname(__file__), 'models', 'scaler.joblib')
+        
+        clusterer.save_results(out_csv)
+        clusterer.save_model(model_path, scaler_path)
+        clusterer.plot_clusters()
+        
+        print("\nClustering completed successfully!")
+        print(f"Results saved to: {out_csv}")
+        print(f"Models saved in: models/")
+        print("Plot saved as 'clusters_plot.png'.")
+        
+        print("\n--- Risk Tier Summary ---")
+        print(clusterer.client_stats['risk_tier'].value_counts().to_frame(name='Client Count'))

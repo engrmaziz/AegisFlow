@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/Button';
 import { fetchCashFlowForecast } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ComposedChart, Line } from 'recharts';
-import { Activity, TrendingUp, AlertOctagon, RefreshCw } from 'lucide-react';
+import { ResponsiveContainer, Area, XAxis, YAxis, CartesianGrid, Tooltip, ComposedChart } from 'recharts';
+import { Activity, AlertOctagon, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function CashFlowPage() {
@@ -128,10 +128,10 @@ export default function CashFlowPage() {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                 <XAxis dataKey="day" minTickGap={20} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v / 1000}k`} />
                                 <Tooltip
                                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                                    formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                                    formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, ''] : ['', '']}
                                 />
                                 <Area type="monotone" dataKey="upper" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.1} />
                                 <Area type="monotone" dataKey="lower" stroke="none" fill="hsl(var(--background))" />

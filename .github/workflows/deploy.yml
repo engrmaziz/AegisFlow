@@ -24,7 +24,7 @@ jobs:
       - name: Install Frontend Dependencies
         run: |
           cd frontend
-          npm install
+          npm install --legacy-peer-deps
         
       # Note: Skipping lint/build step for MVP speed if strict checks fail, but normally this would be here.
       # - name: Build Frontend

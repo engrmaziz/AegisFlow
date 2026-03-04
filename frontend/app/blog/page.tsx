@@ -57,7 +57,7 @@ export default function BlogPage() {
                         <Card key={post.id} className="bg-card/40 border-border/50 hover:border-primary/50 transition-all duration-300 group flex flex-col h-full overflow-hidden">
                             <div className={`h-48 w-full ${post.image} flex items-center justify-center relative overflow-hidden`}>
                                 <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500"></div>
-                                <Badge variant="secondary" className="absolute top-4 left-4 bg-background/80 backdrop-blur-md">
+                                <Badge variant="default" className="absolute top-4 left-4 bg-background/80 backdrop-blur-md">
                                     {post.category}
                                 </Badge>
                             </div>

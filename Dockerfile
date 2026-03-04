@@ -11,8 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy backend requirements explicitly
 COPY backend/requirements.txt /app/requirements.txt
 
-# Install dependencies (ignoring versions that might conflict during MVP build process if any occur)
-RUN pip install --no-cache-dir -r requirements.txt || pip install fastapi uvicorn pydantic python-multipart numpy pandas scikit-learn torch torchvision pytesseract Pillow python-dotenv supabase opencv-python httpx
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy ML backend specific code
 COPY backend/ /app/backend/

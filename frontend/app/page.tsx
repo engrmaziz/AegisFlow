@@ -5,53 +5,8 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowRight, Shield, TrendingUp, Brain, Zap, CheckCircle, Star, Menu, X } from 'lucide-react';
 
-function Navbar() {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                    <div className="flex-shrink-0 flex items-center">
-                        <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500">
-                            InvoiceIQ
-                        </Link>
-                    </div>
-                    <div className="hidden md:flex items-center space-x-8">
-                        <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
-                        <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
-                        <a href="#about" className="text-muted-foreground hover:text-foreground transition-colors">About</a>
-                        <Link href="/auth/signup" className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors">
-                            Get Started
-                        </Link>
-                    </div>
-                    <div className="md:hidden flex items-center">
-                        <button onClick={() => setIsOpen(!isOpen)} className="text-muted-foreground hover:text-foreground">
-                            {isOpen ? <X size={24} /> : <Menu size={24} />}
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="md:hidden bg-card border-b border-border"
-                    >
-                        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                            <a href="#features" className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground">Features</a>
-                            <a href="#pricing" className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground">Pricing</a>
-                            <a href="#about" className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-foreground">About</a>
-                            <Link href="/auth/signup" className="block px-3 py-2 text-base font-medium text-primary hover:text-primary/80">Get Started</Link>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </nav>
-    );
-}
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 
 export default function LandingPage() {
     const featuresRef = useRef(null);
@@ -301,44 +256,8 @@ export default function LandingPage() {
             </section>
 
             {/* FOOTER */}
-            <footer className="bg-card border-t border-border py-12">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                        <div className="md:col-span-1">
-                            <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-500 mb-4 inline-block">
-                                InvoiceIQ
-                            </Link>
-                            <p className="text-muted-foreground text-sm">AI financial intelligence for the modern business.</p>
-                        </div>
-                        <div>
-                            <h4 className="font-bold mb-4">Product</h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li><a href="#features" className="hover:text-foreground">Features</a></li>
-                                <li><a href="#pricing" className="hover:text-foreground">Pricing</a></li>
-                                <li><Link href="/auth/login" className="hover:text-foreground">Log in</Link></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="font-bold mb-4">Company</h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li><Link href="/about" className="hover:text-foreground">About Us</Link></li>
-                                <li><Link href="/contact" className="hover:text-foreground">Contact</Link></li>
-                                <li><Link href="/blog" className="hover:text-foreground">Blog</Link></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 className="font-bold mb-4">Legal</h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                <li><Link href="/privacy-policy" className="hover:text-foreground">Privacy Policy</Link></li>
-                                <li><Link href="/terms-of-service" className="hover:text-foreground">Terms of Service</Link></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-                        &copy; {new Date().getFullYear()} InvoiceIQ. All rights reserved.
-                    </div>
-                </div>
-            </footer>
+            {/* FOOTER */}
+            <Footer />
         </div>
     );
 }

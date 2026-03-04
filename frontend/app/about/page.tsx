@@ -1,11 +1,8 @@
+'use client';
+
 import React from 'react';
 import { Bot, LineChart, Network, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
-
-export const metadata = {
-    title: 'About | InvoiceIQ',
-    description: 'Learn about InvoiceIQ and our AI-driven financial platform.',
-};
 
 export default function AboutPage() {
     return (

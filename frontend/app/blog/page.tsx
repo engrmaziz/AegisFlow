@@ -1,13 +1,10 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Calendar, Clock, ChevronRight } from 'lucide-react';
-
-export const metadata = {
-    title: 'Blog | InvoiceIQ',
-    description: 'Insights on AI and Finance from the InvoiceIQ team.',
-};
 
 const BLOG_POSTS = [
     {

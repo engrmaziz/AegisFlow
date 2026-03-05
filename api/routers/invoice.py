@@ -28,7 +28,7 @@ class RiskResponse(BaseModel):
     predicted_days_late: float
     confidence: float
 
-@router.post("/predict/invoice-risk", response_model=RiskResponse)
+@router.post("/invoice-risk", response_model=RiskResponse)
 async def predict_invoice_risk(req: RiskRequest):
     """
     Predicts the risk of default and estimated delay days for a specific invoice.

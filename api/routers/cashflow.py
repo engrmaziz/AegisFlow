@@ -22,7 +22,7 @@ class CashflowResponse(BaseModel):
     projected_60_day: float
     projected_90_day: float
 
-@router.post("/predict/cashflow", response_model=CashflowResponse)
+@router.post("/cashflow", response_model=CashflowResponse)
 async def predict_cashflow(req: CashflowRequest):
     """
     Predicts cash flow for the next 90 days using an LSTM-inspired approach.

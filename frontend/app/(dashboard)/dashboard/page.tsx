@@ -17,7 +17,7 @@ import {
     LineChart,
     Line
 } from 'recharts';
-import { ArrowUpRight, ArrowDownRight, DollarSign, Users, FileText, AlertTriangle, Download } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, DollarSign, Users, FileText, AlertTriangle, Download, Plus } from 'lucide-react';
 import Link from 'next/link';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -210,19 +210,27 @@ export default function DashboardOverview() {
                     <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
                     <p className="text-muted-foreground">Welcome back! Here's your financial summary.</p>
                 </div>
-                <Button onClick={handleDownloadReport} disabled={isGeneratingPdf} className="flex items-center gap-2">
-                    {isGeneratingPdf ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Generating PDF...
-                        </>
-                    ) : (
-                        <>
-                            <Download className="w-4 h-4" />
-                            Download PDF Report
-                        </>
-                    )}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Link href="/dashboard/clients/add">
+                        <Button variant="secondary" className="flex items-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Add Client
+                        </Button>
+                    </Link>
+                    <Button onClick={handleDownloadReport} disabled={isGeneratingPdf} className="flex items-center gap-2">
+                        {isGeneratingPdf ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Generating PDF...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-4 h-4" />
+                                Download PDF Report
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {/* Container to capture for PDF */}

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase';
 import { fetchClientCluster } from '@/lib/api';
 import { Users, Search, Plus, Phone, Mail, Box } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function ClientsPage() {
     const { user } = useAuth();
@@ -70,9 +71,11 @@ export default function ClientsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
                     <p className="text-muted-foreground">Manage clients and view their KMeans clustering profiles.</p>
                 </div>
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" /> Add Client
-                </Button>
+                <Link href="/dashboard/clients/add">
+                    <Button>
+                        <Plus className="mr-2 h-4 w-4" /> Add Client
+                    </Button>
+                </Link>
             </div>
 
             <div className="relative max-w-md mb-6">

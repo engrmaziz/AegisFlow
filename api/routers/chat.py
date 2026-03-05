@@ -43,7 +43,7 @@ async def ask_financial_advisor(req: ChatRequest):
         # Call the Llama3 8B model via Groq API
         chat_completion = client.chat.completions.create(
             messages=messages,
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile",
             temperature=0.7,
             max_tokens=1024
         )

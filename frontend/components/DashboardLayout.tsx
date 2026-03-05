@@ -13,9 +13,11 @@ import {
     Activity,
     Menu,
     X,
-    CreditCard
+    CreditCard,
+    MessageSquarePlus
 } from 'lucide-react';
 import { useState } from 'react';
+import { FeedbackModal } from '@/components/FeedbackModal';
 
 const navigation = [
     { name: 'Overview', href: '/dashboard', icon: BarChart3 },
@@ -31,6 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
     const supabase = createClient();
 
     const handleSignOut = async () => {
@@ -113,6 +116,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         </div>
                         <button
+                            onClick={() => setIsFeedbackOpen(true)}
+                            className="flex items-center w-full px-3 py-2 text-sm font-medium text-slate-300 rounded-md hover:bg-indigo-600/20 hover:text-indigo-400 transition-colors mb-2"
+                        >
+                            <MessageSquarePlus className="mr-3 h-5 w-5 flex-shrink-0" />
+                            💬 Send Feedback
+                        </button>
+                        <button
                             onClick={handleSignOut}
                             className="flex items-center w-full px-3 py-2 text-sm font-medium text-muted-foreground rounded-md hover:bg-muted hover:text-foreground transition-colors"
                         >
@@ -144,6 +154,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 </main>
             </div>
+
+            <FeedbackModal
+                isOpen={isFeedbackOpen}
+                onClose={() => setIsFeedbackOpen(false)}
+            />
         </div>
     );
 }

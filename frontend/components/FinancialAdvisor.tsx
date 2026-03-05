@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, MessageCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 type Message = {
     role: 'user' | 'assistant';
@@ -101,8 +103,41 @@ export default function FinancialAdvisor() {
                                         <div className={`p-3.5 rounded-2xl text-[13px] shadow-md backdrop-blur-sm ${msg.role === 'user'
                                                 ? 'bg-blue-600/80 text-white rounded-tr-none border border-blue-500/30'
                                                 : 'bg-slate-800/80 border border-white/10 text-slate-200 rounded-tl-none'
-                                            } whitespace-pre-wrap leading-relaxed`}>
-                                            {msg.content}
+                                            } whitespace-pre-wrap leading-relaxed overflow-x-hidden`}>
+                                            {msg.role === 'user' ? (
+                                                msg.content
+                                            ) : (
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                        strong: ({ node, ...props }) => <strong className="font-semibold text-white" {...props} />,
+                                                        h1: ({ node, ...props }) => <h1 className="font-bold text-white text-base mt-3 mb-2" {...props} />,
+                                                        h2: ({ node, ...props }) => <h2 className="font-semibold text-white text-sm mt-3 mb-2" {...props} />,
+                                                        h3: ({ node, ...props }) => <h3 className="font-semibold text-white text-sm mt-2 mb-1" {...props} />,
+                                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-4 space-y-1 mb-2" {...props} />,
+                                                        ol: ({ node, ...props }) => <ol className="list-decimal list-outside ml-4 space-y-1 mb-2" {...props} />,
+                                                        li: ({ node, ...props }) => <li className="text-slate-200" {...props} />,
+                                                        a: ({ node, ...props }) => <a className="text-blue-400 hover:text-blue-300 underline underline-offset-2" {...props} />,
+                                                        code: ({ node, className, children, ...props }: any) => {
+                                                            const isInline = !className;
+                                                            return !isInline ? (
+                                                                <div className="bg-slate-900/50 rounded-md border border-white/10 p-2 my-2 overflow-x-auto text-[12px] font-mono">
+                                                                    <code className={className} {...props}>
+                                                                        {children}
+                                                                    </code>
+                                                                </div>
+                                                            ) : (
+                                                                <code className="bg-slate-900/50 text-blue-300 px-1 py-0.5 rounded text-xs font-mono" {...props}>
+                                                                    {children}
+                                                                </code>
+                                                            )
+                                                        }
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </ReactMarkdown>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -164,8 +199,8 @@ export default function FinancialAdvisor() {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`h-14 w-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 relative focus:outline-none ${isOpen
-                        ? 'bg-slate-800 text-white border border-white/10 rotate-90 scale-90 shadow-none hover:bg-slate-700'
-                        : 'bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:scale-110 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]'
+                    ? 'bg-slate-800 text-white border border-white/10 rotate-90 scale-90 shadow-none hover:bg-slate-700'
+                    : 'bg-gradient-to-br from-blue-600 to-purple-600 text-white hover:scale-110 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)]'
                     }`}
             >
                 {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}

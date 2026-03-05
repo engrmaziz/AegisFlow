@@ -1,5 +1,11 @@
 FROM python:3.10-slim
 
+# Install system dependencies needed for Tesseract OCR
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+
 # Set working directory
 WORKDIR /app
 

@@ -184,15 +184,20 @@ export default function InvoicesPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {inv.predicted_risk_tier ? (
+                                            {inv.ai_risk_label && inv.ai_risk_label !== 'Unanalyzed' ? (
                                                 <div className="flex items-center">
-                                                    {inv.predicted_risk_tier === 'High Risk' && <AlertCircle className="w-4 h-4 text-red-500 mr-1.5" />}
-                                                    {inv.predicted_risk_tier === 'Medium Risk' && <AlertCircle className="w-4 h-4 text-amber-500 mr-1.5" />}
-                                                    {inv.predicted_risk_tier === 'Low Risk' && <AlertCircle className="w-4 h-4 text-green-500 mr-1.5" />}
-                                                    <span>{inv.predicted_risk_tier}</span>
+                                                    {inv.ai_risk_label === 'High Risk' && <AlertCircle className="w-4 h-4 text-red-500 mr-1.5" />}
+                                                    {inv.ai_risk_label === 'Medium Risk' && <AlertCircle className="w-4 h-4 text-amber-500 mr-1.5" />}
+                                                    {inv.ai_risk_label === 'Low Risk' && <AlertCircle className="w-4 h-4 text-green-500 mr-1.5" />}
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${inv.ai_risk_label === 'Low Risk' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                                                        inv.ai_risk_label === 'High Risk' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400' :
+                                                            'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400'
+                                                        }`}>
+                                                        {inv.ai_risk_label}
+                                                    </span>
                                                 </div>
                                             ) : (
-                                                <span className="text-muted-foreground">N/A</span>
+                                                <span className="text-muted-foreground">Unanalyzed</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">

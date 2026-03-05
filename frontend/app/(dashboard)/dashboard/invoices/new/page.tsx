@@ -54,7 +54,7 @@ export default function NewInvoicePage() {
         pdf.setFont("times", "bold");
         pdf.setFontSize(28);
         pdf.setTextColor(15, 23, 42);
-        pdf.text("InvoiceIQ", margin, margin + 10);
+        pdf.text("InvoiceIQ - Financial Intelligence", margin, margin + 10);
 
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(10);

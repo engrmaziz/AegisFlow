@@ -311,20 +311,22 @@ export default function DashboardOverview() {
                                     <p className="text-sm">Generating AI cashflow forecast...</p>
                                 </div>
                             ) : cashflowData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%" aspect={2}>
-                                    <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => Intl.NumberFormat('en-PK', { notation: "compact", compactDisplay: "short", minimumFractionDigits: 0 }).format(value)} />
-                                        <Tooltip
-                                            cursor={{ fill: 'hsl(var(--muted))' }}
-                                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                                            formatter={(value: any) => Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(Number(value || 0))}
-                                        />
-                                        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                                        <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <div className="w-full h-full min-h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%" aspect={2}>
+                                        <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                            <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => Intl.NumberFormat('en-PK', { notation: "compact", compactDisplay: "short", minimumFractionDigits: 0 }).format(value)} />
+                                            <Tooltip
+                                                cursor={{ fill: 'hsl(var(--muted))' }}
+                                                contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                                                formatter={(value: any) => Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(Number(value || 0))}
+                                            />
+                                            <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                     <p className="text-sm">Not enough data for forecast</p>

@@ -173,9 +173,9 @@ export default function ClientsPage() {
                                             {client.phone || 'No phone provided'}
                                         </div>
                                     </div>
-                                    <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${client.risk_tier === 'Tier 1 - Reliable' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                        client.risk_tier === 'Tier 3 - High Risk' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                                            client.risk_tier === 'Tier 2 - Variable' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
+                                    <div className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${client.risk_tier?.includes('Low') ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                        client.risk_tier?.includes('High') ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                            client.risk_tier?.includes('Medium') ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' :
                                                 'bg-muted text-muted-foreground'
                                         }`}>
                                         {client.risk_tier || 'Unanalyzed'}

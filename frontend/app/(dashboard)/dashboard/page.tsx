@@ -32,6 +32,7 @@ export default function DashboardOverview() {
     });
     const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
     const [cashflowData, setCashflowData] = useState<any[]>([]);
+    const [isPredicting, setIsPredicting] = useState(false);
 
     useEffect(() => {
         async function fetchDashboardData() {
@@ -74,17 +75,36 @@ export default function DashboardOverview() {
 
                     setRecentInvoices(invoicesWithClients);
 
-                    // Mock cashflow data for chart
-                    const mockChartData = [
-                        { name: 'Jan', revenue: 4000, expenses: 2400 },
-                        { name: 'Feb', revenue: 3000, expenses: 1398 },
-                        { name: 'Mar', revenue: 2000, expenses: 9800 },
-                        { name: 'Apr', revenue: 2780, expenses: 3908 },
-                        { name: 'May', revenue: 1890, expenses: 4800 },
-                        { name: 'Jun', revenue: 2390, expenses: 3800 },
-                        { name: 'Jul', revenue: 3490, expenses: 4300 },
-                    ];
-                    setCashflowData(mockChartData);
+                    // Fetch real AI cashflow predictions
+                    try {
+                        setIsPredicting(true);
+                        const historical_data = invoices.map(inv => ({
+                            amount: inv.amount,
+                            created_at: inv.created_at
+                        }));
+
+                        const res = await fetch('https://invoiceiq.up.railway.app/predict/cashflow', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                user_id: user.id,
+                                historical_data: historical_data
+                            })
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            setCashflowData(data.forecast || []);
+                        } else {
+                            console.error("Cashflow prediction failed with status:", res.status);
+                        }
+                    } catch (apiError) {
+                        console.error("Error calling cashflow API:", apiError);
+                    } finally {
+                        setIsPredicting(false);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching dashboard data:", error);
@@ -180,19 +200,30 @@ export default function DashboardOverview() {
                         <CardTitle>Cash Flow Overview</CardTitle>
                     </CardHeader>
                     <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                                <Tooltip
-                                    cursor={{ fill: 'hsl(var(--muted))' }}
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                                />
-                                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        {isPredicting ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <p className="text-sm">Generating AI cashflow forecast...</p>
+                            </div>
+                        ) : cashflowData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%" aspect={2}>
+                                <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                    <Tooltip
+                                        cursor={{ fill: 'hsl(var(--muted))' }}
+                                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                                    />
+                                    <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                <p className="text-sm">Not enough data for forecast</p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

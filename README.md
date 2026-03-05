@@ -57,4 +57,4 @@ To transition from a developer environment to a live product:
 * Expand the GAN stress-testing parameters to include industry-specific regional shocks.
 * Automate the K-Means clustering via Supabase Edge Functions (CRON jobs) for background processing.
 
-**Developed in Kasur, Punjab.**
+**Developed in Pakistan.**

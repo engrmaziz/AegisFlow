@@ -311,8 +311,8 @@ export default function DashboardOverview() {
                                     <p className="text-sm">Generating AI cashflow forecast...</p>
                                 </div>
                             ) : cashflowData.length > 0 ? (
-                                <div className="w-full h-full min-h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%" aspect={2}>
+                                <div className="w-full h-[300px] relative">
+                                    <ResponsiveContainer width="100%" height="100%" aspect={2} minWidth={1} minHeight={1}>
                                         <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                             <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />

@@ -118,8 +118,8 @@ export default function CashFlowPage() {
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : forecastData ? (
-                        <div className="w-full h-[350px]">
-                            <ResponsiveContainer width="100%" height="100%" aspect={2.5}>
+                        <div className="w-full h-[350px] relative">
+                            <ResponsiveContainer width="100%" height="100%" aspect={2.5} minWidth={1} minHeight={1}>
                                 <ComposedChart data={forecastData.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">

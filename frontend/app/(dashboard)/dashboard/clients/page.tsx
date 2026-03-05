@@ -47,17 +47,16 @@ export default function ClientsPage() {
         setLoading(true);
 
         try {
+            const payload = clients.map(c => ({
+                client_id: c.id,
+                total_invoice_volume: Number(c.total_value || 0),
+                average_payment_delay_days: Number(c.avg_payment_delay_days || 0)
+            }));
+
             const res = await fetch('https://invoiceiq.up.railway.app/risk/cluster', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(
-                    clients.map(client => ({
-                        id: client.id,
-                        payment_delay_days: client.avg_payment_delay_days,
-                        invoice_amount: client.total_value > 0 ? (client.total_value / client.total_invoices) : 5000,
-                        late_payment_count: Math.floor(client.avg_payment_delay_days > 5 ? 2 : 0)
-                    }))
-                )
+                body: JSON.stringify({ clients: payload })
             });
 
             if (res.ok) {
@@ -66,12 +65,12 @@ export default function ClientsPage() {
 
                 // Update Supabase and local state
                 const updatedClients = [...clients];
-                for (const update of results.predictions || []) {
+                for (const update of results.clustered_clients || []) {
                     const clientIndex = updatedClients.findIndex(c => c.id === update.client_id);
                     if (clientIndex !== -1) {
-                        updatedClients[clientIndex].risk_tier = update.risk_tier;
+                        updatedClients[clientIndex].risk_tier = update.risk_label;
                         // Fire and forget DB update
-                        supabase.from('clients').update({ risk_tier: update.risk_tier }).eq('id', update.client_id).then();
+                        supabase.from('clients').update({ risk_tier: update.risk_label }).eq('id', update.client_id).then();
                     }
                 }
 

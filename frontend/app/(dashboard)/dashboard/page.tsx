@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, DollarSign, Users, FileText, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import FinancialAdvisor from '@/components/FinancialAdvisor';
 
 export default function DashboardOverview() {
     const { user } = useAuth();
@@ -229,6 +230,8 @@ export default function DashboardOverview() {
                     </CardContent>
                 </Card>
             </div>
+
+            <FinancialAdvisor />
         </div>
     );
 }

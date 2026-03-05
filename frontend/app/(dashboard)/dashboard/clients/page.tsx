@@ -9,9 +9,11 @@ import { Users, Search, Plus, Phone, Mail, Box, Activity } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useToast } from '@/components/ToastProvider';
+import { useRouter } from 'next/navigation';
 
 export default function ClientsPage() {
     const { user } = useAuth();
+    const router = useRouter();
     const { showToast } = useToast();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -75,6 +77,7 @@ export default function ClientsPage() {
 
                 setClients(updatedClients);
                 showToast('Clustering complete! Risk tiers updated.', 'success');
+                router.refresh();
             } else {
                 console.error("Clustering failed with status:", res.status);
             }

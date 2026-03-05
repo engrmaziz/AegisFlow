@@ -79,7 +79,7 @@ export default function CashFlowPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">
-                            ${forecastData?.projected_30_day ? forecastData.projected_30_day.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}
+                            {forecastData?.projected_30_day ? Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(forecastData.projected_30_day) : '---'}
                         </div>
                     </CardContent>
                 </Card>
@@ -89,7 +89,7 @@ export default function CashFlowPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">
-                            ${forecastData?.projected_60_day ? forecastData.projected_60_day.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}
+                            {forecastData?.projected_60_day ? Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(forecastData.projected_60_day) : '---'}
                         </div>
                     </CardContent>
                 </Card>
@@ -101,7 +101,7 @@ export default function CashFlowPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold text-primary">
-                            ${forecastData?.projected_90_day ? forecastData.projected_90_day.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}
+                            {forecastData?.projected_90_day ? Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(forecastData.projected_90_day) : '---'}
                         </div>
                     </CardContent>
                 </Card>
@@ -118,26 +118,28 @@ export default function CashFlowPage() {
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : forecastData ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={forecastData.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                                <XAxis dataKey="day" minTickGap={20} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v / 1000}k`} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
-                                    formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(2)}`, ''] : ['', '']}
-                                />
-                                <Area type="monotone" dataKey="upper" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.1} />
-                                <Area type="monotone" dataKey="lower" stroke="none" fill="hsl(var(--background))" />
-                                <Area type="monotone" dataKey="prediction" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorPred)" />
-                            </ComposedChart>
-                        </ResponsiveContainer>
+                        <div className="w-full h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%" aspect={2.5}>
+                                <ComposedChart data={forecastData.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                    <XAxis dataKey="day" minTickGap={20} stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v: number) => Intl.NumberFormat('en-PK', { notation: "compact", compactDisplay: "short", minimumFractionDigits: 0 }).format(v)} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                                        formatter={(value: any) => value !== undefined ? [Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(Number(value)), ''] : ['', '']}
+                                    />
+                                    <Area type="monotone" dataKey="upper" stroke="none" fill="hsl(var(--primary))" fillOpacity={0.1} />
+                                    <Area type="monotone" dataKey="lower" stroke="none" fill="hsl(var(--background))" />
+                                    <Area type="monotone" dataKey="prediction" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#colorPred)" />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
                     ) : null}
                 </CardContent>
             </Card>

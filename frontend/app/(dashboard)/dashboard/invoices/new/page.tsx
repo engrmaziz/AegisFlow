@@ -149,14 +149,31 @@ export default function NewInvoicePage() {
 
             if (insertError) throw insertError;
 
-            showToast('Success! Invoice created.', 'success');
+            // Task 1: Invoice-to-Client Data Sync
+            const { data: clientData, error: clientFetchError } = await supabase
+                .from('clients')
+                .select('total_invoices, total_value')
+                .eq('id', formData.clientId)
+                .single();
+
+            if (!clientFetchError && clientData) {
+                await supabase
+                    .from('clients')
+                    .update({
+                        total_invoices: (clientData.total_invoices || 0) + 1,
+                        total_value: (clientData.total_value || 0) + parseFloat(formData.amount)
+                    })
+                    .eq('id', formData.clientId);
+            }
+
+            showToast('Success! Invoice created & client updated.', 'success');
 
             if (shouldDownload) {
                 generatePdf(invoiceNumber);
             }
 
+            router.refresh(); // Clear Next.js cache
             router.push('/dashboard/invoices');
-            router.refresh();
         } catch (err: any) {
             console.error("Error creating invoice:", err);
             showToast(err.message || 'Failed to create invoice.', 'error');

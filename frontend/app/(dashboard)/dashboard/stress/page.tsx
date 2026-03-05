@@ -56,7 +56,7 @@ export default function StressTestPage() {
                     <CardContent>
                         <form onSubmit={handleTest} className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Current Cash Balance ($)</label>
+                                <label className="text-sm font-medium">Current Cash Balance (PKR)</label>
                                 <Input
                                     type="number"
                                     value={params.balance}
@@ -65,7 +65,7 @@ export default function StressTestPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Fixed Monthly Expenses ($)</label>
+                                <label className="text-sm font-medium">Fixed Monthly Expenses (PKR)</label>
                                 <Input
                                     type="number"
                                     value={params.expenses}
@@ -126,18 +126,18 @@ export default function StressTestPage() {
                                         <div className="mt-4 pt-4 border-t border-border flex justify-between items-center text-sm">
                                             <div className="flex flex-col">
                                                 <span className="text-muted-foreground text-xs uppercase">Day 30 Cash</span>
-                                                <span className="font-medium font-mono">${scenario.days[30].toFixed(0)}</span>
+                                                <span className="font-medium font-mono">{Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(scenario.days[30])}</span>
                                             </div>
                                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                             <div className="flex flex-col">
                                                 <span className="text-muted-foreground text-xs uppercase">Day 60 Cash</span>
-                                                <span className="font-medium font-mono">${scenario.days[60].toFixed(0)}</span>
+                                                <span className="font-medium font-mono">{Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(scenario.days[60])}</span>
                                             </div>
                                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                             <div className="flex flex-col">
                                                 <span className="text-muted-foreground text-xs uppercase">Day 90 Cash</span>
                                                 <span className={`font-medium font-mono ${scenario.days[89] < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                                    ${scenario.days[89].toFixed(0)}
+                                                    {Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(scenario.days[89])}
                                                 </span>
                                             </div>
                                         </div>

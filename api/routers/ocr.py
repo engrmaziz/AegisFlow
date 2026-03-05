@@ -96,12 +96,12 @@ async def process_invoice_ocr(file: UploadFile = File(...)):
         raw_text = pytesseract.image_to_string(cropped_image)
         
         # 5. Regex to parse standard financial fields
-        # Invoice Number (e.g., "Invoice #12345", "Invoice No: INV-099")
-        inv_match = re.search(r'(?i)invoice\s*(?:no|number|#)?\s*[:\-]?\s*([A-Z0-9\-]+)', raw_text)
+        # Invoice Number (account for OCR typos like 'Invelce' and abbreviations like 'PoS')
+        inv_match = re.search(r'(?i)(?:invoice|invelce|pos)\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9\-]+)', raw_text)
         invoice_number = inv_match.group(1).strip() if inv_match else None
         
-        # Total Amount (e.g., "Total: $1,234.56", "Amount Due 1234.56")
-        total_match = re.search(r'(?i)(?:total|amount due|balance)\s*[:\-]?\s*\$?\s*([0-9,]+\.\d{2})', raw_text)
+        # Total Amount (e.g., "Total: 221", "Total: $1,234.56")
+        total_match = re.search(r'(?i)(?:total|amount due|balance)\s*[:\-]?\s*\$?\s*([0-9,]+(?:\.\d{1,2})?)', raw_text)
         total = None
         if total_match:
             try:
@@ -109,8 +109,8 @@ async def process_invoice_ocr(file: UploadFile = File(...)):
             except ValueError:
                 pass
                 
-        # Date (e.g., "Date: 2023-10-25", "10/25/2023")
-        date_match = re.search(r'(?i)date\s*[:\-]?\s*(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})', raw_text)
+        # Date (e.g., "26/02/2026", "2023-10-25" - made prefix purely optional)
+        date_match = re.search(r'(\d{1,4}[-/]\d{1,2}[-/]\d{1,4})', raw_text)
         date = date_match.group(1).strip() if date_match else None
 
         return OCRResponse(

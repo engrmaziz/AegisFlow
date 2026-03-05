@@ -82,9 +82,16 @@ export default function DashboardOverview() {
                     // Fetch real AI cashflow predictions
                     try {
                         setIsPredicting(true);
+
+                        if (invoices.length === 0) {
+                            setCashflowData([]);
+                            setIsPredicting(false);
+                            return; // Guard early and prevent API call
+                        }
+
                         const transactions = invoices.map(inv => ({
-                            date: new Date(inv.created_at).toISOString().split('T')[0],
-                            amount: Number(inv.amount),
+                            date: inv.issue_date || new Date(inv.created_at).toISOString().split('T')[0],
+                            amount: parseFloat(String(inv.amount)),
                             type: 'income'
                         }));
 

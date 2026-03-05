@@ -47,7 +47,57 @@ export default function ClientsPage() {
         setLoading(true);
 
         try {
-            const payload = clients.map(c => ({
+            const supabase = createClient();
+
+            // Step 1: Fetch ALL invoices for time-sync delay calculations
+            const { data: invoicesData, error: invoicesError } = await supabase
+                .from('invoices')
+                .select('client_id, status, due_date')
+                .eq('user_id', user?.id || '');
+
+            if (invoicesError) throw invoicesError;
+
+            const clientDelays: Record<string, { totalDays: number, count: number }> = {};
+
+            if (invoicesData) {
+                const today = new Date();
+                invoicesData.forEach(inv => {
+                    const dueDate = new Date(inv.due_date);
+                    if (inv.status !== 'Paid' && dueDate < today) {
+                        const daysLate = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 3600 * 24));
+                        if (!clientDelays[inv.client_id]) {
+                            clientDelays[inv.client_id] = { totalDays: 0, count: 0 };
+                        }
+                        clientDelays[inv.client_id].totalDays += daysLate;
+                        clientDelays[inv.client_id].count += 1;
+                    }
+                });
+            }
+
+            // Step 2: Push Time-Sync updates directly to database
+            for (const client of clients) {
+                const delayData = clientDelays[client.id];
+                const avgDelay = delayData && delayData.count > 0 ? delayData.totalDays / delayData.count : 0;
+
+                await supabase
+                    .from('clients')
+                    .update({ avg_payment_delay_days: avgDelay })
+                    .eq('id', client.id);
+            }
+
+            // Step 3: Fetch updated source of truth before AI extraction
+            const { data: updatedClientsData, error: clientsError } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('user_id', user?.id || '')
+                .order('created_at', { ascending: false });
+
+            if (clientsError) throw clientsError;
+
+            const freshClients = updatedClientsData || clients;
+
+            // Step 4: Feed the AI the Truth
+            const payload = freshClients.map((c: any) => ({
                 client_id: c.id,
                 total_invoice_volume: Number(c.total_value || 0),
                 average_payment_delay_days: Number(c.avg_payment_delay_days || 0)
@@ -61,27 +111,26 @@ export default function ClientsPage() {
 
             if (res.ok) {
                 const results = await res.json();
-                const supabase = createClient();
 
-                // Update Supabase and local state
-                const updatedClients = [...clients];
+                const finalClients = [...freshClients];
                 for (const update of results.clustered_clients || []) {
-                    const clientIndex = updatedClients.findIndex(c => c.id === update.client_id);
+                    const clientIndex = finalClients.findIndex((c: any) => c.id === update.client_id);
                     if (clientIndex !== -1) {
-                        updatedClients[clientIndex].risk_tier = update.risk_label;
-                        // Fire and forget DB update
+                        finalClients[clientIndex].risk_tier = update.risk_label;
                         supabase.from('clients').update({ risk_tier: update.risk_label }).eq('id', update.client_id).then();
                     }
                 }
 
-                setClients(updatedClients);
+                setClients(finalClients);
                 showToast('Clustering complete! Risk tiers updated.', 'success');
                 router.refresh();
             } else {
                 console.error("Clustering failed with status:", res.status);
+                showToast("Clustering failed with status " + res.status, "error");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Clustering API error", error);
+            showToast(error?.message || "An error occurred during clustering", "error");
         } finally {
             setLoading(false);
         }

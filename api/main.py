@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 # from lstm_forecast import LSTMForecaster
 # from gan_stress import GANTrainer
 
-from api.routers import invoice, cashflow, ocr, stress, client_risk, anomaly
+from api.routers import invoice, cashflow, ocr, stress, client_risk, anomaly, chat
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,6 +54,7 @@ app.include_router(ocr.router, prefix="/ocr", tags=["ocr"])
 app.include_router(stress.router, prefix="", tags=["stress"]) # Includes /stress-test
 app.include_router(client_risk.router, prefix="/risk", tags=["risk"])
 app.include_router(anomaly.router, prefix="/anomaly", tags=["anomaly"])
+app.include_router(chat.router, prefix="/chat", tags=["chat"])
 
 @app.get("/health")
 async def health_check():

@@ -249,7 +249,7 @@ export default function DashboardOverview() {
                             <DollarSign className="h-4 w-4 text-emerald-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">${stats.totalRevenue.toLocaleString()}</div>
+                            <div className="text-2xl font-bold">{Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(stats.totalRevenue)}</div>
                             <p className="text-xs text-muted-foreground flex items-center mt-1">
                                 <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
                                 <span className="text-emerald-500 font-medium">+12.5%</span> from last month
@@ -263,7 +263,7 @@ export default function DashboardOverview() {
                             <AlertTriangle className="h-4 w-4 text-amber-500" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">${stats.outstanding.toLocaleString()}</div>
+                            <div className="text-2xl font-bold">{Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(stats.outstanding)}</div>
                             <p className="text-xs text-muted-foreground mt-1">
                                 {stats.highRiskCount} high-risk invoices
                             </p>
@@ -315,10 +315,11 @@ export default function DashboardOverview() {
                                     <BarChart data={cashflowData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                                         <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => Intl.NumberFormat('en-PK', { notation: "compact", compactDisplay: "short", minimumFractionDigits: 0 }).format(value)} />
                                         <Tooltip
                                             cursor={{ fill: 'hsl(var(--muted))' }}
                                             contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                                            formatter={(value: any) => Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(Number(value || 0))}
                                         />
                                         <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                                         <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
@@ -351,7 +352,7 @@ export default function DashboardOverview() {
                                                 <p className="text-xs text-muted-foreground">{new Date(inv.created_at).toLocaleDateString()}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-medium text-sm">${inv.amount.toLocaleString()}</p>
+                                                <p className="font-medium text-sm">{Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(inv.amount)}</p>
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                                     inv.status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
                                                         'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'

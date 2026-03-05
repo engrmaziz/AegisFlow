@@ -8,9 +8,13 @@ import { createClient } from '@/lib/supabase';
 import { Plus, Search, Filter, AlertCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useToast } from '@/components/ToastProvider';
+import { useRouter } from 'next/navigation';
 
 export default function InvoicesPage() {
     const { user } = useAuth();
+    const router = useRouter();
+    const { showToast } = useToast();
     const [invoices, setInvoices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +49,35 @@ export default function InvoicesPage() {
         fetchInvoices();
     }, [user]);
 
-    const filteredInvoices = invoices.filter(inv => {
+    const handleMarkAsPaid = async (invoiceId: string) => {
+        const supabase = createClient();
+
+        try {
+            const { error } = await supabase
+                .from('invoices')
+                .update({
+                    status: 'Paid',
+                    paid_date: new Date().toISOString().split('T')[0]
+                })
+                .eq('id', invoiceId);
+
+            if (error) throw error;
+
+            showToast('Invoice marked as Paid successfully.', 'success');
+
+            // Optimistic local update
+            setInvoices((prev: any[]) => prev.map((inv: any) =>
+                inv.id === invoiceId ? { ...inv, status: 'Paid', paid_date: new Date().toISOString().split('T')[0] } : inv
+            ));
+
+            router.refresh();
+        } catch (error) {
+            console.error("Error marking invoice as paid:", error);
+            showToast('Failed to update invoice status.', 'error');
+        }
+    };
+
+    const filteredInvoices = invoices.filter((inv: any) => {
         const matchesSearch = inv.client_name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'All' || inv.status === filterStatus;
         return matchesSearch && matchesStatus;
@@ -101,6 +133,7 @@ export default function InvoicesPage() {
                                 <th className="px-6 py-4 font-medium">Due Date</th>
                                 <th className="px-6 py-4 font-medium">Status</th>
                                 <th className="px-6 py-4 font-medium">AI Risk Assessment</th>
+                                <th className="px-6 py-4 font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -112,11 +145,12 @@ export default function InvoicesPage() {
                                         <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
                                         <td className="px-6 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
                                         <td className="px-6 py-4"><Skeleton className="h-6 w-24 rounded-full" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-8 w-24" /></td>
                                     </tr>
                                 ))
                             ) : filteredInvoices.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                                         <div className="flex flex-col items-center justify-center">
                                             <FileText className="h-10 w-10 mb-2 opacity-20" />
                                             <p>No invoices found matching your criteria.</p>
@@ -127,7 +161,7 @@ export default function InvoicesPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredInvoices.map((inv) => (
+                                filteredInvoices.map((inv: any) => (
                                     <tr key={inv.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="font-medium text-foreground">{inv.client_name}</div>
@@ -136,7 +170,7 @@ export default function InvoicesPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 font-medium">
-                                            ${inv.amount.toLocaleString()}
+                                            {Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(inv.amount)}
                                         </td>
                                         <td className="px-6 py-4 text-muted-foreground">
                                             {new Date(inv.due_date).toLocaleDateString()}
@@ -154,20 +188,23 @@ export default function InvoicesPage() {
                                                 <div className="flex items-center">
                                                     {inv.predicted_risk_tier === 'High Risk' && <AlertCircle className="w-4 h-4 text-red-500 mr-1.5" />}
                                                     {inv.predicted_risk_tier === 'Medium Risk' && <AlertCircle className="w-4 h-4 text-amber-500 mr-1.5" />}
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${inv.predicted_risk_tier === 'Low Risk' ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-400' :
-                                                        inv.predicted_risk_tier === 'High Risk' ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400' :
-                                                            'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-400'
-                                                        }`}>
-                                                        {inv.predicted_risk_tier}
-                                                    </span>
-                                                    {inv.predicted_delay_days && inv.status !== 'Paid' && (
-                                                        <span className="text-xs text-muted-foreground ml-2">
-                                                            Est. +{Math.round(inv.predicted_delay_days)} days
-                                                        </span>
-                                                    )}
+                                                    {inv.predicted_risk_tier === 'Low Risk' && <AlertCircle className="w-4 h-4 text-green-500 mr-1.5" />}
+                                                    <span>{inv.predicted_risk_tier}</span>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-muted-foreground italic">Pending Analysis</span>
+                                                <span className="text-muted-foreground">N/A</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {inv.status !== 'Paid' && (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => handleMarkAsPaid(inv.id)}
+                                                    className="text-xs h-8"
+                                                >
+                                                    Mark as Paid
+                                                </Button>
                                             )}
                                         </td>
                                     </tr>

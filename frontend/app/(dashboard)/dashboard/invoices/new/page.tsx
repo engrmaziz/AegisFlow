@@ -1,301 +1,291 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { ArrowLeft, FileText, Download, Save } from 'lucide-react';
+import Link from 'next/link';
 import { useToast } from '@/components/ToastProvider';
-import { createClient } from '@/lib/supabase';
-import { extractOCRData, fetchInvoiceRisk } from '@/lib/api';
-import { UploadCloud, FileText, CheckCircle, AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import jsPDF from 'jspdf';
 
 export default function NewInvoicePage() {
     const { user } = useAuth();
-    const { showToast } = useToast();
     const router = useRouter();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const [clients, setClients] = useState<any[]>([]);
+    const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
-    const [ocrLoading, setOcrLoading] = useState(false);
+    const [clients, setClients] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         clientId: '',
         amount: '',
         dueDate: '',
+        description: ''
     });
 
-    const [aiPrediction, setAiPrediction] = useState<any>(null);
-
     useEffect(() => {
-        async function loadClients() {
+        async function fetchClients() {
             if (!user) return;
             const supabase = createClient();
-            const { data } = await supabase.from('clients').select('id, name, avg_payment_delay_days').eq('user_id', user.id);
+            const { data } = await supabase
+                .from('clients')
+                .select('id, name')
+                .eq('user_id', user.id)
+                .order('name');
             if (data) setClients(data);
         }
-        loadClients();
+        fetchClients();
     }, [user]);
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setOcrLoading(true);
-        showToast('Analyzing document...', 'info');
-
-        try {
-            const ocrResult = await extractOCRData(file);
-            setFormData(prev => ({
-                ...prev,
-                amount: ocrResult.amount ? ocrResult.amount.toString() : prev.amount,
-                dueDate: ocrResult.due_date ? new Date(ocrResult.due_date).toISOString().split('T')[0] : prev.dueDate
-            }));
-            showToast('Data extracted successfully!', 'success');
-        } catch (error) {
-            console.error(error);
-            showToast('OCR extraction failed. Please enter manually.', 'error');
-        } finally {
-            setOcrLoading(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        }
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handlePredictRisk = async () => {
-        if (!formData.clientId || !formData.amount || !formData.dueDate) {
-            showToast('Please fill all fields to predict risk.', 'warning');
-            return;
-        }
+    const generatePdf = (invoiceNumber: string) => {
+        const client = clients.find(c => c.id === formData.clientId);
+        const clientName = client ? client.name : 'Unknown Client';
 
-        const selectedClient = clients.find(c => c.id === formData.clientId);
-        if (!selectedClient) return;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const margin = 20;
 
-        setLoading(true);
-        try {
-            const today = new Date();
-            const dueDate = new Date(formData.dueDate);
-            const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+        // Header
+        pdf.setFont("times", "bold");
+        pdf.setFontSize(28);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text("InvoiceIQ", margin, margin + 10);
 
-            const riskData = await fetchInvoiceRisk({
-                client_id: selectedClient.id,
-                invoice_amount: parseFloat(formData.amount),
-                invoice_age_days: 0,
-                days_until_due: daysUntilDue,
-                client_avg_delay: selectedClient.avg_payment_delay_days || 0,
-                client_late_count: 0 // Simplification for MVP
-            });
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(10);
+        pdf.setTextColor(100);
+        pdf.text("Professional Financial Intelligence", margin, margin + 18);
 
-            setAiPrediction(riskData);
-            showToast('AI Risk Assessment complete.', 'success');
-        } catch (error) {
-            console.error(error);
-            showToast('Failed to assess risk. Using defaults.', 'error');
-        } finally {
-            setLoading(false);
-        }
+        // Invoice Details
+        pdf.setFontSize(20);
+        pdf.setTextColor(0);
+        pdf.text("INVOICE", margin, margin + 40);
+
+        pdf.setFontSize(12);
+        pdf.text(`Invoice Number: ${invoiceNumber}`, margin, margin + 50);
+        pdf.text(`Date Issued: ${new Date().toLocaleDateString()}`, margin, margin + 58);
+        pdf.text(`Due Date: ${new Date(formData.dueDate).toLocaleDateString()}`, margin, margin + 66);
+
+        // Billed To
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Billed To:", margin, margin + 86);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(clientName, margin, margin + 94);
+
+        // Line Items Table Header
+        const tableTop = margin + 114;
+        pdf.setFillColor(241, 245, 249); // slate-100
+        pdf.rect(margin, tableTop, 170, 10, 'F');
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Description", margin + 5, tableTop + 7);
+        pdf.text("Amount", margin + 140, tableTop + 7);
+
+        // Line Items Content
+        pdf.setFont("helvetica", "normal");
+
+        // Handle long descriptions by splitting them
+        const splitDescription = pdf.splitTextToSize(formData.description || 'Professional Services rendered', 120);
+        pdf.text(splitDescription, margin + 5, tableTop + 20);
+
+        const amountFormatted = Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(Number(formData.amount));
+        pdf.text(amountFormatted, margin + 140, tableTop + 20);
+
+        // Total
+        const totalTop = tableTop + 30 + (splitDescription.length * 5);
+        pdf.setDrawColor(200);
+        pdf.line(margin + 100, totalTop, margin + 170, totalTop);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Total Due:", margin + 100, totalTop + 8);
+        pdf.text(amountFormatted, margin + 140, totalTop + 8);
+
+        // Footer
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(150);
+
+        const footerText = 'Generated by InvoiceIQ — https://iq-invoice.vercel.app/';
+        const textWidth = pdf.getStringUnitWidth(footerText) * 9 / pdf.internal.scaleFactor;
+        pdf.text(footerText, (pdfWidth - textWidth) / 2, pdfHeight - 15);
+
+        pdf.save(`Invoice_${invoiceNumber}.pdf`);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent, shouldDownload: boolean) => {
         e.preventDefault();
         if (!user) return;
 
         if (!formData.clientId || !formData.amount || !formData.dueDate) {
-            showToast('Please fill all required fields.', 'warning');
+            showToast("Please fill in all required fields.", "error");
             return;
         }
 
         setLoading(true);
+        const supabase = createClient();
+
+        // Generate pseudo invoice number
+        const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${randomStr}`;
+
         try {
-            const supabase = createClient();
+            const { error: insertError } = await supabase
+                .from('invoices')
+                .insert({
+                    user_id: user.id,
+                    client_id: formData.clientId,
+                    amount: parseFloat(formData.amount),
+                    due_date: formData.dueDate,
+                    description: formData.description,
+                    status: 'Pending',
+                    issue_date: new Date().toISOString().split('T')[0],
+                    invoice_number: invoiceNumber
+                });
 
-            const { error } = await supabase.from('invoices').insert({
-                user_id: user.id,
-                client_id: formData.clientId,
-                amount: parseFloat(formData.amount),
-                due_date: formData.dueDate,
-                status: 'Pending',
-                predicted_risk_tier: aiPrediction?.risk_label || 'Unanalyzed',
-                predicted_delay_days: aiPrediction?.predicted_days_late || 0,
-                metadata: aiPrediction ? { ai_confidence: aiPrediction.confidence } : {}
-            });
+            if (insertError) throw insertError;
 
-            if (error) throw error;
+            showToast('Success! Invoice created.', 'success');
 
-            showToast('Invoice created successfully!', 'success');
+            if (shouldDownload) {
+                generatePdf(invoiceNumber);
+            }
+
             router.push('/dashboard/invoices');
-        } catch (error: any) {
-            console.error(error);
-            showToast(error.message || 'Failed to create invoice.', 'error');
+            router.refresh();
+        } catch (err: any) {
+            console.error("Error creating invoice:", err);
+            showToast(err.message || 'Failed to create invoice.', 'error');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Create Invoice</h1>
-                <p className="text-muted-foreground">Upload a document for OCR or enter details manually.</p>
+        <div className="space-y-6 max-w-3xl mx-auto">
+            <div className="flex items-center gap-4">
+                <Link href="/dashboard/invoices" className="text-muted-foreground hover:text-white transition-colors">
+                    <ArrowLeft className="w-5 h-5" />
+                </Link>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Create Invoice</h1>
+                    <p className="text-muted-foreground">Generate a new professional invoice and download the PDF.</p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Smart Upload</CardTitle>
-                            <CardDescription>Upload an image or PDF to auto-extract amount and dates.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div
-                                className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer"
-                                onClick={() => fileInputRef.current?.click()}
+            <Card className="border-indigo-500/20 shadow-[0_0_40px_-10px_rgba(99,102,241,0.1)] bg-slate-900/50 backdrop-blur-xl">
+                <CardHeader>
+                    <CardTitle>Invoice Details</CardTitle>
+                    <CardDescription>Fill out the primary billing information below.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form className="space-y-6">
+                        <div className="space-y-2">
+                            <label htmlFor="clientId" className="text-sm font-medium text-slate-300">Select Client <span className="text-red-400">*</span></label>
+                            <select
+                                id="clientId"
+                                name="clientId"
+                                value={formData.clientId}
+                                onChange={handleChange}
+                                required
+                                className="w-full bg-slate-800/50 border border-white/10 rounded-md px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner appearance-none"
                             >
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept="image/*,.pdf"
-                                    onChange={handleFileUpload}
-                                />
-                                {ocrLoading ? (
-                                    <div className="flex flex-col items-center">
-                                        <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
-                                        <p className="text-sm font-medium">Running Computer Vision Model...</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Extracting key data points</p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center">
-                                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                        <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, PDF up to 10MB</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <form onSubmit={handleSubmit}>
-                            <CardHeader>
-                                <CardTitle className="text-lg">Invoice Details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Client</label>
-                                    <select
-                                        value={formData.clientId}
-                                        onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                                        className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                        required
-                                    >
-                                        <option value="">Select a client...</option>
-                                        {clients.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Amount ($)</label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={formData.amount}
-                                            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Due Date</label>
-                                        <Input
-                                            type="date"
-                                            value={formData.dueDate}
-                                            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-between items-center pt-4 border-t border-border mt-6">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={handlePredictRisk}
-                                        disabled={loading || ocrLoading}
-                                    >
-                                        <Activity className="h-4 w-4 mr-2" />
-                                        Run AI Risk Analysis
-                                    </Button>
-                                    <Button type="submit" loading={loading} disabled={ocrLoading}>
-                                        Create Invoice
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </form>
-                    </Card>
-                </div>
-
-                <div className="space-y-6">
-                    <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                        <CardHeader>
-                            <CardTitle className="text-lg flex items-center">
-                                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 mr-2 text-primary" stroke="currentColor" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                                AI Risk Engine
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {aiPrediction ? (
-                                <div className="space-y-4">
-                                    <div className="p-4 rounded-lg bg-background/50 border border-border backdrop-blur-sm">
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Risk Classification</p>
-                                        <div className="flex items-center">
-                                            {aiPrediction.risk_label === 'High Risk' && <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />}
-                                            {aiPrediction.risk_label === 'Medium Risk' && <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />}
-                                            {aiPrediction.risk_label === 'Low Risk' && <CheckCircle className="h-5 w-5 text-emerald-500 mr-2" />}
-                                            <span className={`text-lg font-bold ${aiPrediction.risk_label === 'Low Risk' ? 'text-emerald-500' :
-                                                aiPrediction.risk_label === 'High Risk' ? 'text-red-500' : 'text-amber-500'
-                                                }`}>
-                                                {aiPrediction.risk_label}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="p-3 rounded-lg bg-background/50 border border-border">
-                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Delay Prediction</p>
-                                            <p className="font-mono text-lg text-foreground">+{Math.round(aiPrediction.predicted_days_late)} <span className="text-xs text-muted-foreground font-sans">days</span></p>
-                                        </div>
-                                        <div className="p-3 rounded-lg bg-background/50 border border-border">
-                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Default Prob.</p>
-                                            <p className="font-mono text-lg text-foreground">{(aiPrediction.default_probability * 100).toFixed(1)}%</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-xs text-muted-foreground mt-4 flex items-start">
-                                        <div className="min-w-4 pt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-primary/50"></div></div>
-                                        <p>Model confidence: {(aiPrediction.confidence * 100).toFixed(0)}%. Based on SVM historical patterns.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-center py-6 text-muted-foreground">
-                                    <Activity className="h-10 w-10 mx-auto mb-3 opacity-20" />
-                                    <p className="text-sm">Fill out invoice details and click 'Run AI Risk Analysis' to generate predictions.</p>
-                                </div>
+                                <option value="" disabled>Select a client...</option>
+                                {clients.map(client => (
+                                    <option key={client.id} value={client.id}>{client.name}</option>
+                                ))}
+                            </select>
+                            {clients.length === 0 && (
+                                <p className="text-xs text-amber-400 mt-1">No clients found. Please add a client first.</p>
                             )}
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label htmlFor="amount" className="text-sm font-medium text-slate-300">Amount (PKR) <span className="text-red-400">*</span></label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rs</span>
+                                    <input
+                                        id="amount"
+                                        name="amount"
+                                        type="number"
+                                        step="0.01"
+                                        required
+                                        value={formData.amount}
+                                        onChange={handleChange}
+                                        placeholder="0.00"
+                                        className="w-full pl-9 bg-slate-800/50 border border-white/10 rounded-md px-4 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label htmlFor="dueDate" className="text-sm font-medium text-slate-300">Due Date <span className="text-red-400">*</span></label>
+                                <input
+                                    id="dueDate"
+                                    name="dueDate"
+                                    type="date"
+                                    required
+                                    value={formData.dueDate}
+                                    onChange={handleChange}
+                                    className="w-full bg-slate-800/50 border border-white/10 rounded-md px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner [color-scheme:dark]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="description" className="text-sm font-medium text-slate-300">Description</label>
+                            <textarea
+                                id="description"
+                                name="description"
+                                rows={3}
+                                value={formData.description}
+                                onChange={handleChange}
+                                placeholder="Describe the services or products billed..."
+                                className="w-full bg-slate-800/50 border border-white/10 rounded-md px-4 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner resize-none"
+                            />
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-white/5">
+                            <Link href="/dashboard/invoices">
+                                <Button type="button" variant="ghost" className="w-full sm:w-auto text-slate-300 hover:text-white">
+                                    Cancel
+                                </Button>
+                            </Link>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={loading || clients.length === 0}
+                                onClick={(e) => handleSubmit(e, false)}
+                                className="w-full sm:w-auto"
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-slate-500 border-t-white rounded-full animate-spin mr-2" />
+                                ) : (
+                                    <Save className="w-4 h-4 mr-2" />
+                                )}
+                                Save Draft
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={loading || clients.length === 0}
+                                onClick={(e) => handleSubmit(e, true)}
+                                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                                ) : (
+                                    <Download className="w-4 h-4 mr-2" />
+                                )}
+                                Generate & Save PDF
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     );
 }
-
-// Need to import Activity since it was missing above
-import { Activity } from 'lucide-react';

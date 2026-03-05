@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/lib/supabase';
-import { fetchClientCluster } from '@/lib/api';
-import { Users, Search, Plus, Phone, Mail, Box } from 'lucide-react';
+import { Users, Search, Plus, Phone, Mail, Box, Activity } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useToast } from '@/components/ToastProvider';
 
 export default function ClientsPage() {
     const { user } = useAuth();
+    const { showToast } = useToast();
     const [clients, setClients] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -39,23 +40,48 @@ export default function ClientsPage() {
         loadClients();
     }, [user]);
 
-    const runClusteringAnalysis = async (clientId: string) => {
-        const client = clients.find(c => c.id === clientId);
-        if (!client) return;
+    const runClusteringAnalysis = async () => {
+        if (clients.length === 0) return;
+        setLoading(true);
 
         try {
-            const result = await fetchClientCluster({
-                payment_delay_days: client.avg_payment_delay_days,
-                invoice_amount: 5000,
-                late_payment_count: Math.floor(client.avg_payment_delay_days > 5 ? 2 : 0)
+            const res = await fetch('https://invoiceiq.up.railway.app/risk/cluster', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(
+                    clients.map(client => ({
+                        id: client.id,
+                        payment_delay_days: client.avg_payment_delay_days,
+                        invoice_amount: client.total_value > 0 ? (client.total_value / client.total_invoices) : 5000,
+                        late_payment_count: Math.floor(client.avg_payment_delay_days > 5 ? 2 : 0)
+                    }))
+                )
             });
 
-            const supabase = createClient();
-            await supabase.from('clients').update({ risk_tier: result.risk_tier }).eq('id', clientId);
+            if (res.ok) {
+                const results = await res.json();
+                const supabase = createClient();
 
-            setClients(prev => prev.map(c => c.id === clientId ? { ...c, risk_tier: result.risk_tier } : c));
+                // Update Supabase and local state
+                const updatedClients = [...clients];
+                for (const update of results.predictions || []) {
+                    const clientIndex = updatedClients.findIndex(c => c.id === update.client_id);
+                    if (clientIndex !== -1) {
+                        updatedClients[clientIndex].risk_tier = update.risk_tier;
+                        // Fire and forget DB update
+                        supabase.from('clients').update({ risk_tier: update.risk_tier }).eq('id', update.client_id).then();
+                    }
+                }
+
+                setClients(updatedClients);
+                showToast('Clustering complete! Risk tiers updated.', 'success');
+            } else {
+                console.error("Clustering failed with status:", res.status);
+            }
         } catch (error) {
-            console.error("Clustering failed", error);
+            console.error("Clustering API error", error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -71,11 +97,16 @@ export default function ClientsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
                     <p className="text-muted-foreground">Manage clients and view their KMeans clustering profiles.</p>
                 </div>
-                <Link href="/dashboard/clients/add">
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" /> Add Client
+                <div className="flex items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                    <Button variant="secondary" onClick={runClusteringAnalysis} disabled={clients.length === 0 || loading}>
+                        <Activity className="mr-2 h-4 w-4" /> Re-run Clustering
                     </Button>
-                </Link>
+                    <Link href="/dashboard/clients/add">
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" /> Add Client
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <div className="relative max-w-md mb-6">
@@ -109,10 +140,22 @@ export default function ClientsPage() {
                         </Card>
                     ))
                 ) : filteredClients.length === 0 ? (
-                    <div className="col-span-full py-12 text-center text-muted-foreground">
-                        <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                        <p className="text-lg font-medium">No clients found</p>
-                        <p className="text-sm">Try empty search or add a new client.</p>
+                    <div className="col-span-full py-16 text-center bg-slate-900/40 rounded-xl border border-white/5 shadow-inner">
+                        <div className="flex flex-col items-center justify-center">
+                            <div className="bg-slate-800/50 p-4 rounded-full mb-4">
+                                <Users className="h-8 w-8 text-slate-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">No Clients Found</h3>
+                            <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
+                                You haven't added any clients yet, or none match your current search criteria.
+                                Start building your network to power AI-driven risk clustering.
+                            </p>
+                            <Link href="/dashboard/clients/add">
+                                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white border-0">
+                                    <Plus className="w-4 h-4 mr-2" /> Add Your First Client
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 ) : (
                     filteredClients.map((client) => (
@@ -149,15 +192,6 @@ export default function ClientsPage() {
                                         <p className="font-mono text-sm">{client.total_invoices}</p>
                                     </div>
                                 </div>
-
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full mt-4 text-xs h-8"
-                                    onClick={() => runClusteringAnalysis(client.id)}
-                                >
-                                    <Box className="w-3 h-3 mr-2" /> Re-run Clustering
-                                </Button>
                             </CardContent>
                         </Card>
                     ))

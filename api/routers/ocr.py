@@ -96,8 +96,8 @@ async def process_invoice_ocr(file: UploadFile = File(...)):
         raw_text = pytesseract.image_to_string(cropped_image)
         
         # 5. Regex to parse standard financial fields
-        # Invoice Number (account for OCR typos like 'Invelce' and abbreviations like 'PoS')
-        inv_match = re.search(r'(?i)(?:invoice|invelce|pos)\s*(?:no\.?|number|#)?\s*[:\-]?\s*([A-Z0-9\-]+)', raw_text)
+        # Invoice Number (account for OCR typos like 'Invelce' and abbreviations like 'PoS', requiring 'No' or '#' to prevent eager matching)
+        inv_match = re.search(r'(?i)(?:invoice|invelce|pos)\s*(?:no\.?|number|#)\s*[:\-]?\s*([A-Z0-9\-]+)', raw_text)
         invoice_number = inv_match.group(1).strip() if inv_match else None
         
         # Total Amount (e.g., "Total: 221", "Total: $1,234.56")

@@ -82,9 +82,10 @@ export default function DashboardOverview() {
                     // Fetch real AI cashflow predictions
                     try {
                         setIsPredicting(true);
-                        const historical_data = invoices.map(inv => ({
-                            amount: inv.amount,
-                            created_at: inv.created_at
+                        const transactions = invoices.map(inv => ({
+                            date: new Date(inv.created_at).toISOString().split('T')[0],
+                            amount: Number(inv.amount),
+                            type: 'income'
                         }));
 
                         const res = await fetch('https://invoiceiq.up.railway.app/predict/cashflow', {
@@ -93,14 +94,18 @@ export default function DashboardOverview() {
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                user_id: user.id,
-                                historical_data: historical_data
+                                transactions: transactions
                             })
                         });
 
                         if (res.ok) {
                             const data = await res.json();
-                            setCashflowData(data.forecast || []);
+                            const forecastChartData = (data.forecast || []).map((val: number, idx: number) => ({
+                                name: `D${idx + 1}`,
+                                revenue: val > 0 ? val : 0,
+                                expenses: val < 0 ? Math.abs(val) : 0
+                            }));
+                            setCashflowData(forecastChartData);
                         } else {
                             console.error("Cashflow prediction failed with status:", res.status);
                         }
